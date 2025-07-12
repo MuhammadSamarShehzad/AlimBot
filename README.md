@@ -6,7 +6,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.46+-red.svg)
 ![Docker](https://img.shields.io/badge/Docker-Compose-orange.svg)
-![AI](https://img.shields.io/badge/AI-Gemini%202.0-purple.svg)
+![AI](https://img.shields.io/badge/AI-Gemini%202.5-purple.svg)
 
 **An intelligent Islamic guidance system powered by AI, providing scholarly answers based on Quran, Hadith, and Fatwa sources.**
 
@@ -18,7 +18,7 @@
 ## 🌟 Features
 
 ### 🤖 **AI-Powered Responses**
-- **Gemini 2.0 Flash** integration for intelligent Islamic guidance
+- **Gemini 2.5 Pro** integration for intelligent Islamic guidance
 - **Multi-source knowledge base** combining Quran, Hadith, and Fatwa
 - **Structured responses** with proper citations and references
 - **Context-aware answers** tailored to user queries
