@@ -1,8 +1,16 @@
 services:
   - type: web
     name: alim-bot-api
-    env: docker-compose
+    env: docker
     plan: free
-    buildCommand: docker-compose build
-    startCommand: docker-compose up
-    dockerComposeFilePath: docker-compose.yml
+    dockerfilePath: api/Dockerfile
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port 8000
+
+  - type: web
+    name: alim-bot-ui
+    env: docker
+    plan: free
+    dockerfilePath: app/Dockerfile
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run main.py --server.port=8501 --server.address=0.0.0.0
