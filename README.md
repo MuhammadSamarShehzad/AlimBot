@@ -10,8 +10,6 @@
 
 **An intelligent Islamic guidance system powered by AI, providing scholarly answers based on Quran, Hadith, and Fatwa sources.**
 
-[![Demo](https://img.shields.io/badge/Live-Demo-brightgreen.svg)](https://your-demo-link.com)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 </div>
 
