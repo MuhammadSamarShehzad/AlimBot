@@ -221,11 +221,6 @@ docker-compose up --build
 ```bash
 # Required
 GOOGLE_AI_API_KEY=your_gemini_api_key
-
-# Optional
-LOG_LEVEL=INFO
-MAX_TOKENS=2048
-TEMPERATURE=0.7
 ```
 
 ---
