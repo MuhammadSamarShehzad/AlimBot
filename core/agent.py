@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-MODEL_NAME = "gemini-2.0-flash"
+MODEL_NAME = "gemini-2.5-pro"
 
 root_agent = LlmAgent(
     model=MODEL_NAME,
