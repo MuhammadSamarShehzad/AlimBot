@@ -1,14 +1,20 @@
 services:
   - type: web
-    name: alim-bot-api
-    env: docker
+    name: fastapi-backend
+    env: python
     plan: free
-    dockerfilePath: api/Dockerfile
     buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port 8000
+    runtime: python
+    branch: master
+    autoDeploy: true
 
   - type: web
-    name: alim-bot-ui
-    env: docker
+    name: streamlit-frontend
+    env: python
     plan: free
-    dockerfilePath: app/Dockerfile
     buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app/main.py --server.port=8501 --server.address=0.0.0.0
+    runtime: python
+    branch: master
+    autoDeploy: true
