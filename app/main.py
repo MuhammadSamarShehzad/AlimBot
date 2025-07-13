@@ -2,7 +2,8 @@ import streamlit as st
 import requests
 import random
 
-API_URL = "http://fastapi:8000/query"
+# API_URL = "http://fastapi:8000/query"
+API_URL = "https://fastapi-backend.onrender.com/query"
 
 st.set_page_config(page_title="Islamic Guidance AI", page_icon="🕌", layout="centered")
 
