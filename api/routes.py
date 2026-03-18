@@ -6,6 +6,7 @@ from google.adk.memory import InMemoryMemoryService
 from google.adk.runners import Runner
 from core.agent import root_agent
 import uuid
+from typing import Optional
 
 APP_NAME = "islamic_guidance_app"
 
@@ -24,20 +25,23 @@ runner = Runner(
 
 class QueryRequest(BaseModel):
     query: str
+    session_id: Optional[str] = None
 
-async def get_or_create_sid(request: Request, response: Response) -> str:
-    """Return a per-client sid stored in a cookie; create session if new."""
-    sid = request.cookies.get("sid")
+class ResetRequest(BaseModel):
+    session_id: Optional[str] = None
+
+async def get_or_create_sid(request: Request, response: Response, request_body: Optional[QueryRequest] = None) -> str:
+    """Return a per-client sid; try request body first, then cookie, then create new."""
+    sid = None
+    if request_body and request_body.session_id:
+        sid = request_body.session_id
+
+    if not sid:
+        sid = request.cookies.get("sid")
+
     if not sid:
         sid = str(uuid.uuid4())
-        # Create a brand-new session for this sid
-        await session_service.create_session(
-            app_name=APP_NAME,
-            user_id=sid,
-            session_id=sid,
-            state={}
-        )
-        # Set cookie so the same client reuses the same session
+        # Set cookie so the same client reuses the same session if they support cookies
         response.set_cookie(
             key="sid",
             value=sid,
@@ -45,24 +49,27 @@ async def get_or_create_sid(request: Request, response: Response) -> str:
             samesite="lax",
             max_age=60 * 60 * 24 * 30  # 30 days
         )
+
+    # Ensure the session exists in our in-memory service
+    try:
+        await session_service.create_session(
+            app_name=APP_NAME,
+            user_id=sid,
+            session_id=sid,
+            state={}
+        )
+    except Exception:
+        # Likely already exists — ignore.
+        pass
+
     return sid
 
 @router.post("/query")
-async def query(request_body: QueryRequest, request: Request, response: Response, sid: str = Depends(get_or_create_sid)):
-    try:
-        # If the app restarts, the cookie may exist but the in-memory session won't.
-        # Ensure the session exists (best-effort).
-        try:
-            await session_service.create_session(
-                app_name=APP_NAME,
-                user_id=sid,
-                session_id=sid,
-                state={}
-            )
-        except Exception:
-            # Likely already exists — ignore.
-            pass
+async def query(request_body: QueryRequest, request: Request, response: Response):
+    # Manually call get_or_create_sid to pass request_body
+    sid = await get_or_create_sid(request, response, request_body)
 
+    try:
         msg = types.Content(role="user", parts=[types.Part(text=request_body.query)])
 
         async for event in runner.run_async(
@@ -71,15 +78,20 @@ async def query(request_body: QueryRequest, request: Request, response: Response
             new_message=msg
         ):
             if event.is_final_response() and event.content and event.content.parts:
-                return {"result": event.content.parts[0].text}
+                return {"result": event.content.parts[0].text, "session_id": sid}
 
-        return {"result": "No response"}
+        return {"result": "No response", "session_id": sid}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Optional: allow a client to wipe its own session/history
 @router.post("/reset")
-async def reset_session(request: Request, response: Response, sid: str = Depends(get_or_create_sid)):
+async def reset_session(request_body: ResetRequest, request: Request, response: Response):
+    # For reset, we can't easily use the same QueryRequest body
+    sid = request_body.session_id if request_body.session_id else request.cookies.get("sid")
+
+    if not sid:
+        return {"status": "no session to reset"}
+
     try:
         await session_service.delete_session(
             app_name=APP_NAME,
@@ -93,6 +105,6 @@ async def reset_session(request: Request, response: Response, sid: str = Depends
             session_id=sid,
             state={}
         )
-        return {"status": "reset"}
+        return {"status": "reset", "session_id": sid}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

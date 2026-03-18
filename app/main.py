@@ -1,167 +1,191 @@
 import streamlit as st
 import requests
 import random
+import uuid
 
-API_URL = "http://fastapi:8000/query"
+import os
+API_URL = os.getenv("API_URL", "http://fastapi:8000/query")
+RESET_URL = os.getenv("RESET_URL", "http://fastapi:8000/reset")
 
-st.set_page_config(page_title="Islamic Guidance AI", page_icon="🕌", layout="centered")
+st.set_page_config(
+    page_title="AlimBot - Islamic Guidance AI",
+    page_icon="🕌",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Initialize session state
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
+
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+if 'selected_qs' not in st.session_state:
+    example_questions = [
+        "What breaks wudu?",
+        "Can I pray with shoes on?",
+        "Is fasting on Mondays Sunnah?",
+        "What are the rights of parents?",
+        "Who can receive zakat?",
+        "How to perform Tayammum?",
+        "What is the ruling on investing in stocks?",
+        "Can women lead prayers?",
+        "What are the conditions for a valid marriage in Islam?",
+        "Is it permissible to eat food prepared by non-Muslims?",
+        "What are the etiquettes of visiting the mosque?",
+        "How to calculate prayer times?",
+        "What is the significance of Laylat al-Qadr?",
+        "Can I delay my prayers for work?",
+        "What are the rules for wearing hijab?"
+    ]
+    st.session_state.selected_qs = random.sample(example_questions, 5)
 
 # --- Custom CSS for Modern Design ---
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
-body {
-    background: #fafafa;
-    font-family: 'Roboto', sans-serif;
+.stApp {
+    font-family: 'Inter', sans-serif;
 }
 
-h1 {
+.main-header {
     text-align: center;
-    font-size: 2.8rem;
-    color: #008080;
-    margin-bottom: 0.2rem;
-}
-
-.subtext {
-    text-align: center;
-    color: #555;
-    margin-bottom: 2rem;
-    font-size: 1.05rem;
-}
-
-.input-block, .answer-box {
-    background: #fff;
-    border-radius: 14px;
-    padding: 24px;
-    box-shadow: 0 6px 24px rgba(0,0,0,0.04);
-    margin-bottom: 2rem;
-}
-
-.stTextArea textarea {
-    font-size: 16px !important;
-    padding: 16px;
-    border-radius: 10px !important;
-    border: 1px solid #ccc;
-}
-
-.stButton button {
-    background-color: #ff7f50;
+    padding: 2rem 0;
+    background: linear-gradient(135deg, #008080 0%, #004d4d 100%);
     color: white;
-    font-size: 16px;
-    padding: 10px 28px;
-    border-radius: 8px;
-    transition: 0.3s ease;
+    border-radius: 15px;
+    margin-bottom: 2rem;
 }
 
-.stButton button:hover {
-    background-color: #1e1e1e;
-    transform: scale(1.02);
+.main-header h1 {
+    margin: 0;
+    font-size: 3rem;
+    font-weight: 600;
 }
 
-.answer-box {
-    font-size: 1rem;
-    line-height: 1.7;
-    color: #222;
-    border-left: 4px solid #008080;
-    padding-left: 16px;
+.main-header p {
+    font-size: 1.2rem;
+    opacity: 0.9;
 }
 
-hr {
-    margin: 3rem 0 1.5rem 0;
-    border: none;
-    border-top: 1px solid #eee;
+.stChatMessage {
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 1rem;
 }
 
-.footer {
-    text-align: center;
-    color: #aaa;
-    font-size: 12px;
+/* Sidebar styling */
+[data-testid="stSidebar"] {
+    background-color: #f8f9fa;
 }
 
-/* Ensure example question buttons have uniform size */
-.input-block button {
+.example-btn {
     width: 100%;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    padding: 10px 15px;
-    background-color: #f0f0f0;
+    margin-bottom: 0.5rem;
+    text-align: left !important;
 }
+
 </style>
 """, unsafe_allow_html=True)
 
-# --- List of Example Questions (Pool of 15) ---
-example_questions = [
-    "What breaks wudu?",
-    "Can I pray with shoes on?",
-    "Is fasting on Mondays Sunnah?",
-    "What are the rights of parents?",
-    "Who can receive zakat?",
-    "How to perform Tayammum?",
-    "What is the ruling on investing in stocks?",
-    "Can women lead prayers?",
-    "What are the conditions for a valid marriage in Islam?",
-    "Is it permissible to eat food prepared by non-Muslims?",
-    "What are the etiquettes of visiting the mosque?",
-    "How to calculate prayer times?",
-    "What is the significance of Laylat al-Qadr?",
-    "Can I delay my prayers for work?",
-    "What are the rules for wearing hijab?"
-]
+# --- Sidebar ---
+with st.sidebar:
+    st.image("https://img.icons8.com/color/96/mosque.png", width=80)
+    st.title("AlimBot Settings")
 
-# --- Select 5 random questions for this session ---
-if 'selected_qs' not in st.session_state:
-    st.session_state.selected_qs = random.sample(example_questions, 5)
+    st.subheader("💡 Suggested Questions")
+    for q in st.session_state.selected_qs:
+        if st.button(q, key=f"side_{q}", use_container_width=True):
+            st.session_state.query_input = q
+            # We don't rerun here to allow user to edit or see what they clicked
+            # But actually for better UX, let's just trigger the search if they click an example
+            st.session_state.trigger_search = True
 
-# --- Header with Banner (Placeholder) ---
-# st.image("path_to_banner_image.jpg", use_column_width=True)  # Uncomment and replace with actual image path
-st.markdown("<h1>🕌 Islamic Guidance Agent</h1>", unsafe_allow_html=True)
-st.markdown("<div class='subtext'>Ask your Islamic question and receive a scholarly response powered by Quran, Hadith, and Fatwa.</div>", unsafe_allow_html=True)
+    st.divider()
 
-# --- Input Section ---
-st.markdown("<div class='input-block'>", unsafe_allow_html=True)
+    if st.button("🗑️ Clear Chat History", type="primary", use_container_width=True):
+        try:
+            requests.post(RESET_URL, json={"session_id": st.session_state.session_id})
+            st.session_state.chat_history = []
+            st.session_state.query_input = ""
+            st.success("History cleared!")
+        except Exception as e:
+            st.error(f"Error: {e}")
 
-st.subheader("💡 Example Questions")
-# Display selected example questions as buttons in columns
-cols = st.columns(5)
-for col, q in zip(cols, st.session_state.selected_qs):
-    if col.button(q, key=q):
-        st.session_state.query_input = q
+    st.divider()
+    with st.expander("📘 About AlimBot"):
+        st.markdown("""
+        **AlimBot** uses advanced AI to provide Islamic guidance based on:
+        - 📖 **Quran**
+        - 📜 **Hadith**
+        - 📚 **Fatwas**
 
-# Text area for user question, pre-filled if an example is selected
-query = st.text_area("✍️ Your Question", value=st.session_state.get("query_input", ""), height=140, placeholder="Type or select a question...")
+        *Note: AI responses are for informational purposes. Consult scholars for religious rulings.*
+        """)
 
-if st.button("👳‍♂️ Ask Now"):
-    if not query.strip():
-        st.warning("Please enter a question.")
-    else:
-        with st.spinner("🧠 Thinking..."):
+# --- Main Interface ---
+st.markdown("""
+<div class='main-header'>
+    <h1>🕌 AlimBot</h1>
+    <p>Your Intelligent Islamic Guidance System</p>
+</div>
+""", unsafe_allow_html=True)
+
+# Display chat history
+for message in st.session_state.chat_history:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# Handle triggered search from sidebar
+if st.session_state.get("trigger_search"):
+    query = st.session_state.query_input
+    st.session_state.chat_history.append({"role": "user", "content": query})
+    with st.chat_message("user"):
+        st.markdown(query)
+
+    with st.chat_message("assistant"):
+        with st.spinner("Analyzing Islamic sources..."):
             try:
-                res = requests.post(API_URL, json={"query": query})
+                res = requests.post(API_URL, json={
+                    "query": query,
+                    "session_id": st.session_state.session_id
+                })
                 if res.status_code == 200:
-                    st.markdown(f"<div class='answer-box'><h3>📖 Answer</h3>{res.json()['result']}</div>", unsafe_allow_html=True)
+                    answer = res.json()['result']
+                    st.markdown(answer)
+                    st.session_state.chat_history.append({"role": "assistant", "content": answer})
                 else:
                     st.error(f"❌ {res.json().get('detail', 'Unknown error')}")
             except Exception as e:
                 st.error(f"🚫 Connection error: {e}")
 
-st.markdown("</div>", unsafe_allow_html=True)
+    st.session_state.trigger_search = False
+    st.session_state.query_input = ""
 
-# --- Info Section in Expander ---
-with st.expander("📘 About This App"):
-    st.markdown("""
-    This AI assistant provides Islamic rulings with references from:
+# Chat input
+if query := st.chat_input("Ask about an Islamic topic..."):
+    st.session_state.chat_history.append({"role": "user", "content": query})
+    with st.chat_message("user"):
+        st.markdown(query)
 
-    - 📖 **Quran**
-    - 📜 **Hadith**
-    - 📚 **Fatwas**
+    with st.chat_message("assistant"):
+        with st.spinner("Analyzing Islamic sources..."):
+            try:
+                res = requests.post(API_URL, json={
+                    "query": query,
+                    "session_id": st.session_state.session_id
+                })
+                if res.status_code == 200:
+                    answer = res.json()['result']
+                    st.markdown(answer)
+                    st.session_state.chat_history.append({"role": "assistant", "content": answer})
+                else:
+                    st.error(f"❌ {res.json().get('detail', 'Unknown error')}")
+            except Exception as e:
+                st.error(f"🚫 Connection error: {e}")
 
-    Answers structured, citation-based, and locally processed.
-
-    > ⚠️ Always consult a qualified scholar before making decisions based on AI answers.
-    """)
-
-# --- Footer ---
-st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown("<div class='footer'>🤲 May Allah guide us all with knowledge & wisdom.</div>", unsafe_allow_html=True)
+# Footer
+st.markdown("---")
+st.markdown("<div style='text-align: center; color: #888;'>🤲 May Allah guide us all with knowledge & wisdom.</div>", unsafe_allow_html=True)
