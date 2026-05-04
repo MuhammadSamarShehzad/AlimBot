@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import random
+import markdown
 
 API_URL = "http://fastapi:8000/query"
 
@@ -140,7 +141,9 @@ if st.button("👳‍♂️ Ask Now"):
             try:
                 res = requests.post(API_URL, json={"query": query})
                 if res.status_code == 200:
-                    st.markdown(f"<div class='answer-box'><h3>📖 Answer</h3>{res.json()['result']}</div>", unsafe_allow_html=True)
+                    answer_text = res.json()['result']
+                    html_answer = markdown.markdown(answer_text, extensions=['fenced_code', 'tables'])
+                    st.markdown(f"<div class='answer-box'><h3>📖 Answer</h3>{html_answer}</div>", unsafe_allow_html=True)
                 else:
                     st.error(f"❌ {res.json().get('detail', 'Unknown error')}")
             except Exception as e:

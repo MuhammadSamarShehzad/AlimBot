@@ -1,9 +1,9 @@
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 import pandas as pd
 from core.config import *
 
-embedder = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+embedder = FastEmbedEmbeddings(model_name=EMBEDDING_MODEL)
 fatwa_df = pd.read_csv(FATWA_CSV_PATH)
 
 def get_fatwa_answer_by_id(fatwa_id):
